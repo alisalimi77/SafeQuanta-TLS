@@ -57,6 +57,10 @@ certs/
 *.key
 *.crt
 
+# Explicitly include test fixtures
+!tests/fixtures/
+!tests/fixtures/*
+
 # OS specific
 .DS_Store
 Thumbs.db

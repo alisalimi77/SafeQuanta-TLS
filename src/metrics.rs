@@ -21,8 +21,8 @@ pub fn init(config: &MetricsConfig) -> Result<()> {
 }
 
 // Handshake metrics
-pub fn record_handshake_time(duration_ms: u64) {
-    metrics::histogram!("handshake_duration_ms", duration_ms as f64);
+pub fn record_handshake_duration(duration_ms: u64) {
+    metrics::histogram!("handshake_duration_ms", duration_ms as f64, "type" => "handshake");
 }
 
 pub fn record_handshake_error() {
@@ -36,12 +36,12 @@ pub fn record_tls_alert(alert_type: &str) {
 
 // CPU metrics
 pub fn record_cpu_cycles(cycles: u64) {
-    metrics::gauge!("cpu_cycles_total", cycles as f64);
+    metrics::gauge!("cpu_cycles_total", cycles as f64, "type" => "cpu");
 }
 
 // Connection metrics
-pub fn record_active_connections(count: u64) {
-    metrics::gauge!("active_connections", count as f64);
+pub fn record_active_connections(count: usize) {
+    metrics::gauge!("active_connections", count as f64, "type" => "connections");
 }
 
 pub fn record_connection_error() {
@@ -50,7 +50,7 @@ pub fn record_connection_error() {
 
 // Proxy metrics
 pub fn record_proxy_request_duration(duration_ms: u64) {
-    metrics::histogram!("proxy_request_duration_ms", duration_ms as f64);
+    metrics::histogram!("proxy_request_duration_ms", duration_ms as f64, "type" => "request");
 }
 
 pub fn record_proxy_bytes_sent(bytes: u64) {

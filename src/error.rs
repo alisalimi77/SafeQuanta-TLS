@@ -31,6 +31,15 @@ pub enum SafeQuantaError {
 
     #[error("Fallback error: {0}")]
     Fallback(String),
+
+    #[error("Other error: {0}")]
+    Other(String),
+}
+
+impl From<anyhow::Error> for SafeQuantaError {
+    fn from(err: anyhow::Error) -> Self {
+        SafeQuantaError::Other(err.to_string())
+    }
 }
 
 pub type Result<T> = std::result::Result<T, SafeQuantaError>; 

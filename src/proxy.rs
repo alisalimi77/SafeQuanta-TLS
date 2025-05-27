@@ -4,7 +4,7 @@ use crate::error::{Result, SafeQuantaError};
 use crate::metrics::Metrics;
 use crate::tls::TlsManager;
 use std::sync::Arc;
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Semaphore;
 use tokio::time::timeout;
@@ -161,10 +161,109 @@ impl ProxyServer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::{KemAlgorithm, SignatureAlgorithm};
+    use std::net::SocketAddr;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::time::Duration;
+
+    async fn setup_test_proxy() -> (ProxyServer, SocketAddr, SocketAddr) {
+        let proxy_config = Arc::new(ProxyConfig {
+            listen_addr: "127.0.0.1:0".parse().unwrap(),
+            target_addr: "127.0.0.1:0".parse().unwrap(),
+            target_host: "localhost".to_string(),
+            max_connections: 10,
+        });
+
+        let tls_config = Arc::new(crate::config::TlsConfig {
+            cert_path: "tests/fixtures/test.crt".to_string(),
+            key_path: "tests/fixtures/test.key".to_string(),
+            server_addr: "127.0.0.1:0".parse().unwrap(),
+            kem_algorithm: KemAlgorithm::Kyber768,
+            signature_algorithm: SignatureAlgorithm::Dilithium3,
+        });
+
+        let metrics = Arc::new(Metrics::new());
+        let crypto_provider = Arc::new(CryptoProvider::new(
+            tls_config.kem_algorithm,
+            tls_config.signature_algorithm,
+            &tls_config.cert_path,
+            &tls_config.key_path,
+        ).unwrap());
+
+        let tls_manager = Arc::new(TlsManager::new(
+            tls_config,
+            crypto_provider.clone(),
+            metrics.clone(),
+        ).unwrap());
+
+        let proxy_server = ProxyServer::new(
+            proxy_config.clone(),
+            tls_manager,
+            crypto_provider,
+            metrics,
+        );
+
+        let proxy_listener = TcpListener::bind(proxy_config.listen_addr).await.unwrap();
+        let proxy_addr = proxy_listener.local_addr().unwrap();
+
+        let target_listener = TcpListener::bind(proxy_config.target_addr).await.unwrap();
+        let target_addr = target_listener.local_addr().unwrap();
+
+        (proxy_server, proxy_addr, target_addr)
+    }
 
     #[tokio::test]
-    async fn test_proxy_server_creation() {
-        // This is a placeholder test
-        // TODO: Implement actual tests with test certificates and keys
+    async fn test_proxy_data_transfer() {
+        let (proxy_server, proxy_addr, target_addr) = setup_test_proxy().await;
+
+        // Start target server
+        let target_server = tokio::spawn(async move {
+            let listener = TcpListener::bind(target_addr).await.unwrap();
+            let (stream, _) = listener.accept().await.unwrap();
+            let mut tls_stream = proxy_server.tls_manager.accept(stream).await.unwrap();
+            
+            let mut buf = [0u8; 1024];
+            let n = tls_stream.read(&mut buf).await.unwrap();
+            assert_eq!(&buf[..n], b"hello");
+            
+            tls_stream.write_all(b"world").await.unwrap();
+        });
+
+        // Connect client to proxy
+        let client_stream = TcpStream::connect(proxy_addr).await.unwrap();
+        let mut client_tls = proxy_server.tls_manager.connect("localhost").await.unwrap();
+        
+        client_tls.write_all(b"hello").await.unwrap();
+        
+        let mut buf = [0u8; 1024];
+        let n = client_tls.read(&mut buf).await.unwrap();
+        assert_eq!(&buf[..n], b"world");
+
+        target_server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_connection_limit() {
+        let (proxy_server, proxy_addr, _) = setup_test_proxy().await;
+        let mut handles = vec![];
+
+        // Try to establish more connections than the limit
+        for _ in 0..proxy_server.config.max_connections + 1 {
+            let handle = tokio::spawn(async move {
+                let stream = TcpStream::connect(proxy_addr).await;
+                stream
+            });
+            handles.push(handle);
+        }
+
+        // Wait for all connection attempts
+        let results = futures::future::join_all(handles).await;
+        
+        // Count successful connections
+        let successful = results.iter()
+            .filter(|r| r.as_ref().unwrap().is_ok())
+            .count();
+
+        assert_eq!(successful, proxy_server.config.max_connections);
     }
 } 

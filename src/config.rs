@@ -16,7 +16,7 @@ pub struct ServerConfig {
     pub workers: usize,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TlsConfig {
     pub cert_path: PathBuf,
     pub key_path: PathBuf,
@@ -58,7 +58,7 @@ pub struct MetricsConfig {
     pub port: u16,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ProxyConfig {
     pub mode: ProxyMode,
     pub upstream: String,
