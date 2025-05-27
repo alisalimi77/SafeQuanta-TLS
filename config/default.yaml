@@ -1,0 +1,24 @@
+server:
+  host: "0.0.0.0"
+  port: 443
+  workers: 4
+
+tls:
+  cert_path: "certs/server.crt"
+  key_path: "certs/server.key"
+  kem_algorithm: "Kyber768"
+  signature_algorithm: "Dilithium3"
+  fallback_config:
+    enabled: true
+    strategy: "ClassicTls"
+    non_pqc_port: 8443
+
+metrics:
+  enabled: true
+  host: "0.0.0.0"
+  port: 9090
+
+proxy:
+  mode: "Layer7"
+  upstream: "http://localhost:8080"
+  timeout: 30 
