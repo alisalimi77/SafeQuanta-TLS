@@ -1,0 +1,2 @@
+[registries]
+github = { index = "git+https://github.com/alisalimi77/SafeQuanta-TLS", api = "https://github.com/alisalimi77/SafeQuanta-TLS" } 
