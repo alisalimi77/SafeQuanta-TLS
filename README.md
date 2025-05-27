@@ -1,104 +1,127 @@
-# SafeQuanta-TLS 🌟
+# SafeQuanta TLS Proxy
 
-A Next-Generation TLS Proxy with Post-Quantum Cryptography Support
+A quantum-safe TLS proxy implementation that provides post-quantum cryptography support for secure communications.
 
-## Overview
+## Features
 
-SafeQuanta-TLS is a cutting-edge TLS proxy implementation that provides quantum-safe communications. Built with modern cryptographic protocols and advanced observability features, it offers a robust solution for securing communications in the post-quantum era.
+- Quantum-safe key exchange using Kyber (768 and 1024 variants)
+- Quantum-safe signatures using Dilithium3
+- TLS 1.3 support with post-quantum cipher suites
+- High-performance async I/O with Tokio
+- Metrics collection and monitoring
+- Configurable connection limits and timeouts
 
-## Key Features
+## Requirements
 
-### TLS 1.3 Hybrid KEM Support
-- **Default Configuration**: KYBER768 + X25519
-- **Advanced Options**: 
-  - KYBER1024 for enhanced security
-  - DILITHIUM3 for server signatures
-  - Configurable KEM selection
+- Rust 1.70 or later
+- OpenSSL development libraries
+- A valid TLS certificate and private key
 
-### Multi-Layer Reverse Proxy
-- **Layer 4 & 7 Support**:
-  - TCP traffic handling
-  - HTTP/1.1 and HTTP/2 protocols
-  - Experimental QUIC/HTTP-3 support
+## Installation
 
-### Smart Fallback Mechanism
-- **Legacy Client Handling**:
-  - Connection rejection option
-  - Non-PQC port redirection
-  - Pure X25519 fallback
-- **Configurable Policies**:
-  - Per-client fallback rules
-  - Custom security thresholds
-
-### Advanced Observability
-- **Prometheus Integration**:
-  - Handshake timing metrics
-  - TLS alert rates
-  - CPU cycles per cgroup
-- **Structured Logging**:
-  - JSON format
-  - Multiple log levels (Debug/Info/Warn/Error)
-  - Detailed connection analytics
-
-### Unified Configuration
-- **Flexible Configuration**:
-  - YAML/JSON configuration files
-  - Environment variables support
-  - Dynamic configuration reload
-- **Kubernetes Integration**:
-  - Native side-car deployment
-  - Helm chart support
-  - Istio mTLS compatibility
-
-## System Requirements
-
-| Component | Specification |
-|-----------|---------------|
-| **OS** | Linux x86-64 (Debian/Ubuntu 20.04+, Alpine 3.19, Fedora 40) |
-| **Compiler** | Rust ≥ 1.72 (MSRV) • CMake ≥ 3.18 • Perl |
-| **Crypto Libraries** | OpenSSL-OQS 3.3-dev or BoringSSL-OQS |
-| **Hardware** | AES-NI CPU • 256 MB RAM per 1k connections |
-
-## Quick Start
-
-### Using Helm
+1. Clone the repository:
 ```bash
-# Add the Helm repository
-helm repo add safequanta https://alisalimi77.github.io/SafeQuanta-TLS
-
-# Install SafeQuanta-TLS
-helm install safequanta safequanta/safequanta
+git clone https://github.com/alisalimi77/SafeQuanta-TLS.git
+cd SafeQuanta-TLS
 ```
 
-### Manual Installation
+2. Build the project:
 ```bash
-# Clone the repository
-git clone https://github.com/alisalimi77/SafeQuanta-TLS.git
-
-# Build the project
-cd SafeQuanta-TLS
 cargo build --release
 ```
 
-## Version 0.1.x Limitations
+3. Create a configuration file:
+```bash
+cp config/default.yaml config/local.yaml
+# Edit config/local.yaml with your settings
+```
 
-- Single KEM algorithm (KYBER768) and server signature algorithm (rsa3072 or dilithium3)
-- Supported browsers: Chrome/Edge 124+ with `chrome://flags/#tls13-kyber` enabled, Firefox Nightly 126
-- No Client-Auth PQC support (classic mTLS required)
-- QUIC/HTTP-3 in experimental state (not recommended for production)
+4. Run the proxy:
+```bash
+./target/release/safequanta-tls
+```
 
-## Contributing
+## Configuration
 
-We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+The proxy is configured using a YAML file. Here's an example configuration:
+
+```yaml
+server:
+  listen_addr: "0.0.0.0:8443"
+  max_connections: 1000
+  timeout: 30s
+
+tls:
+  cert_path: "certs/server.crt"
+  key_path: "certs/server.key"
+  kem_algorithm: "kyber768"  # or "kyber1024"
+  signature_algorithm: "dilithium3"  # or "rsa3072"
+
+metrics:
+  enabled: true
+  prometheus_port: 9090
+
+proxy:
+  target_addr: "127.0.0.1:443"
+  target_host: "example.com"
+  max_connections: 100
+```
+
+## Usage
+
+1. Start the proxy with your configuration:
+```bash
+./target/release/safequanta-tls --config config/local.yaml
+```
+
+2. Configure your client to use the proxy:
+```bash
+curl --proxy https://localhost:8443 https://example.com
+```
 
 ## Security
 
-If you discover any security-related issues, please email security@safequanta-tls.dev instead of using the issue tracker.
+This project implements post-quantum cryptography algorithms that are resistant to attacks from both classical and quantum computers:
+
+- Kyber: A lattice-based key encapsulation mechanism (KEM)
+- Dilithium: A lattice-based digital signature scheme
+- RSA-3072: A classical signature algorithm for compatibility
+
+## Development
+
+### Building
+
+```bash
+cargo build
+```
+
+### Testing
+
+```bash
+cargo test
+```
+
+### Code Style
+
+```bash
+cargo fmt
+cargo clippy
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-[License information will be added]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Author
+## Acknowledgments
 
-Ali Salimi 
+- [NIST PQC Project](https://csrc.nist.gov/projects/post-quantum-cryptography)
+- [Rustls](https://github.com/rustls/rustls)
+- [Tokio](https://github.com/tokio-rs/tokio) 
